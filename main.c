@@ -53,7 +53,7 @@ void read_config_and_populate(Dimensions* d, char* config_filename){
 void write_picture(Picture p){
 	FILE *f = fopen("fractal.ppm", "w");
 
-	fprintf(f, "P3\n%d %d\n128\n", p.width, p.height);
+	fprintf(f, "P3\n%d %d\n256\n", p.width, p.height);
 
 	int i, j;
 	for(i = 0; i < p.height; i++){
@@ -72,9 +72,6 @@ void create_picture(Picture* p, Dimensions d){
 
 	Pixel* pixels = read_colors("pal.ppm");
 
-	//printf("xs=%f ys=%f\n", x_step, y_step);
-
-	float y, x;
 	int i, j;
 
 	p->width = d.pixel_width;
@@ -86,22 +83,16 @@ void create_picture(Picture* p, Dimensions d){
 		p->pixel_colors[i] = (Pixel*)malloc(sizeof(Pixel) * d.pixel_width);
 	}
 
-	i = j = 0;
-
-	for(y = d.ymin; y < d.ymax - y_step; y += y_step){
-		for(x = d.xmin; x < d.xmax - x_step; x += x_step){
+	for(i = 0; i < d.pixel_height; i++){
+		for(j = 0; j < d.pixel_width; j++){
 			Complex c;
-			c.x = x;
-			c.y = y;
+			c.x = j*x_step + d.xmin;
+			c.y = i*y_step + d.ymin;
 			unsigned char value = is_in_mandlebrot(c);
 			p->pixel_colors[i][j].r = pixels[value].r;
 			p->pixel_colors[i][j].g = pixels[value].g;
 			p->pixel_colors[i][j].b = pixels[value].b;
-			printf("%d %d\n", i, j);
-			j++;
 		}
-		i++;
-		j=0;
 	}
 
 }
