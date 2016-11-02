@@ -1,7 +1,8 @@
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 
-#define MAX_STEPS 1000
+#define MAX_STEPS 10000
 
 typedef struct Dimensions{
 	float ymin, ymax, xmin, xmax;
@@ -9,7 +10,7 @@ typedef struct Dimensions{
 }Dimensions;
 
 typedef struct Pixel{
-	char r,g,b;
+	unsigned char r,g,b;
 }Pixel;
 
 typedef struct Picture{
@@ -24,8 +25,9 @@ typedef struct Complex{
 void read_config_and_populate(Dimensions*, char*);
 void create_picture(Picture*, Dimensions);
 Complex compute_z(Complex, Complex);
-char is_in_mandlebrot(Complex);
+unsigned char is_in_mandlebrot(Complex);
 void write_picture(Picture);
+Pixel* read_colors(char*);
 
 int main(int argc, char** argv){
 	Dimensions d;
@@ -42,8 +44,8 @@ int main(int argc, char** argv){
 void read_config_and_populate(Dimensions* d, char* config_filename){
 	d->ymin = -1;
 	d->ymax = 1;
-	d->xmin = -2;
 	d->xmax = 2;
+	d->xmin = -2;
 	d->pixel_width = 800;
 	d->pixel_height = 600;
 }
@@ -51,7 +53,7 @@ void read_config_and_populate(Dimensions* d, char* config_filename){
 void write_picture(Picture p){
 	FILE *f = fopen("fractal.ppm", "w");
 
-	fprintf(f, "P3\n%d %d\n2\n", p.width, p.height);
+	fprintf(f, "P3\n%d %d\n128\n", p.width, p.height);
 
 	int i, j;
 	for(i = 0; i < p.height; i++){
@@ -60,12 +62,17 @@ void write_picture(Picture p){
 		}
 		fprintf(f, "\n");
 	}
+	fclose(f);
 
 }
 
 void create_picture(Picture* p, Dimensions d){
 	float x_step = (float)(d.xmax - d.xmin)/(float)d.pixel_width;
 	float y_step = (float)(d.ymax - d.ymin)/(float)d.pixel_height;
+
+	Pixel* pixels = read_colors("pal.ppm");
+
+	//printf("xs=%f ys=%f\n", x_step, y_step);
 
 	float y, x;
 	int i, j;
@@ -86,11 +93,11 @@ void create_picture(Picture* p, Dimensions d){
 			Complex c;
 			c.x = x;
 			c.y = y;
-			char value = is_in_mandlebrot(c);
-			p->pixel_colors[i][j].r = value;
-			p->pixel_colors[i][j].g = value;
-			p->pixel_colors[i][j].b = value;
-			//printf("%d %d\n", i, j);
+			unsigned char value = is_in_mandlebrot(c);
+			p->pixel_colors[i][j].r = pixels[value].r;
+			p->pixel_colors[i][j].g = pixels[value].g;
+			p->pixel_colors[i][j].b = pixels[value].b;
+			printf("%d %d\n", i, j);
 			j++;
 		}
 		i++;
@@ -99,7 +106,7 @@ void create_picture(Picture* p, Dimensions d){
 
 }
 
-char is_in_mandlebrot(Complex c){
+unsigned char is_in_mandlebrot(Complex c){
 	int step = 0;
 	
 	Complex z = c;
@@ -110,7 +117,7 @@ char is_in_mandlebrot(Complex c){
 	}
 
 	if(step < MAX_STEPS){
-		return 1;
+		return step%256;
 	}
 
 	return 0;
@@ -123,4 +130,26 @@ Complex compute_z(Complex z, Complex c){
 	new_z.y = c.y + 2 * z.x * z.y;
 
 	return new_z;
+}
+
+Pixel* read_colors(char* filename){
+	int width = 256;
+	Pixel* pixels = (Pixel*)malloc(sizeof(Pixel) * width);	
+	FILE* f = fopen(filename, "rb");
+	int endline_count = 0, i;
+	unsigned char buffer;
+
+	do{
+		fread(&buffer, sizeof(unsigned char), 1, f);
+		if(buffer == 10){
+			endline_count++;
+		}
+	}while(endline_count < 3);
+
+	for(i = 0; i < width; i++){
+		fread(pixels, sizeof(unsigned char), width*3, f);
+	}
+
+	fclose(f);
+	return pixels;
 }
