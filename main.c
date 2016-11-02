@@ -56,6 +56,7 @@ void write_picture(Picture p){
 	fprintf(f, "P3\n%d %d\n256\n", p.width, p.height);
 
 	int i, j;
+
 	for(i = 0; i < p.height; i++){
 		for(j = 0; j < p.width; j++){
 			fprintf(f, "%d %d %d ", p.pixel_colors[i][j].r, p.pixel_colors[i][j].g, p.pixel_colors[i][j].b);
@@ -83,6 +84,8 @@ void create_picture(Picture* p, Dimensions d){
 		p->pixel_colors[i] = (Pixel*)malloc(sizeof(Pixel) * d.pixel_width);
 	}
 
+	#pragma omp parallel for private(i, j)
+	#pragma omp collapse(2)
 	for(i = 0; i < d.pixel_height; i++){
 		for(j = 0; j < d.pixel_width; j++){
 			Complex c;
