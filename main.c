@@ -130,6 +130,8 @@ void create_picture_of_julia(Picture* p, Dimensions d, char* filename){
 		p->pixel_colors[i] = (Pixel*)malloc(sizeof(Pixel) * d.pixel_width);
 	}
 
+	#pragma omp parallel for private(i, j)
+	#pragma omp collapse(2)
 	for(i = 0; i < d.pixel_height; i++){
 		for(j = 0; j < d.pixel_width; j++){
 			Complex z;
