@@ -73,8 +73,8 @@ void read_config_and_populate(Dimensions* d, char* config_filename){
 	d->ymax = 1;
 	d->xmax = 2;
 	d->xmin = -2;
-	d->pixel_width = 700;
-	d->pixel_height = 500;
+	d->pixel_width = 1920;
+	d->pixel_height = 1080;
 }
 
 void write_picture(Picture p){
