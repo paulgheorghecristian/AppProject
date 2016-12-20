@@ -35,10 +35,11 @@ void read_config_and_populate(Dimensions*, char*);
 void create_picture_of_mandelbrot(Picture*, Dimensions, char*);
 void create_picture_of_julia(Picture*, Dimensions, char*);
 Complex compute_z(Complex, Complex);
-unsigned char is_in_mandlebrot(Complex);
+unsigned char is_in_mandelbrot(Complex);
 unsigned char is_in_julia(Complex, Complex);
 void write_picture(Picture);
 Pixel* read_colors(char*);
+void *thread_function_mandelbrot(void *);
 
 int main(int argc, char** argv){
 	Dimensions d;
@@ -46,8 +47,8 @@ int main(int argc, char** argv){
 
 	Picture p;
 
-	//create_picture_of_mandelbrot(&p, d, "fractal.ppm");
-	//write_picture(p);	
+	create_picture_of_mandelbrot(&p, d, "fractal.ppm");
+	write_picture(p);	
 
 	create_picture_of_julia(&p, d, "julia.ppm");
 	write_picture(p);
@@ -84,7 +85,9 @@ void create_picture_of_mandelbrot(Picture* p, Dimensions d, char* filename){
 	float x_step = (float)(d.xmax - d.xmin)/(float)d.pixel_width;
 	float y_step = (float)(d.ymax - d.ymin)/(float)d.pixel_height;
 
-	Pixel* pixels = read_colors("pal.ppm");
+	Complex c;
+	c.x = -0.153;
+	c.y = 0.652995;
 
 	int i, j;
 
@@ -98,16 +101,37 @@ void create_picture_of_mandelbrot(Picture* p, Dimensions d, char* filename){
 		p->pixel_colors[i] = (Pixel*)malloc(sizeof(Pixel) * d.pixel_width);
 	}
 
-	for(i = 0; i < d.pixel_height; i++){
-		for(j = 0; j < d.pixel_width; j++){
-			Complex c;
-			c.x = j*x_step + d.xmin;
-			c.y = i*y_step + d.ymin;
-			unsigned char value = is_in_mandlebrot(c);
-			p->pixel_colors[i][j].r = pixels[value].r;
-			p->pixel_colors[i][j].g = pixels[value].g;
-			p->pixel_colors[i][j].b = pixels[value].b;
+	int nprocs = sysconf(_SC_NPROCESSORS_ONLN);
+
+	ThreadArgs *args;
+	args = (ThreadArgs*)malloc(nprocs*sizeof(ThreadArgs));
+	int crt_index = 0, step = (d.pixel_height/nprocs);
+	if( d.pixel_height%nprocs ){
+		step++;
+	}
+
+	for(i = 0; i < nprocs; i++){
+		args[i].pixel_colors = p->pixel_colors;
+		args[i].d = d;
+		
+		args[i].assignedIndex = crt_index;
+		args[i].assignedCount = step;
+
+		int ciot = d.pixel_height - crt_index;
+		if( ciot <= step ){
+			args[i].assignedCount = ciot;
 		}
+
+		crt_index += step;
+	}
+
+	pthread_t threads[nprocs];
+	for(i = 0; i < nprocs; i++){
+		pthread_create(&threads[i], NULL, thread_function_mandelbrot, (void*)(&args[i]));
+	}
+
+	for(i = 0; i < nprocs; i++){
+		pthread_join(threads[i], NULL);
 	}
 
 }
@@ -131,6 +155,32 @@ void *thread_function(void *args){
 			z.x = j*x_step + arg.d.xmin;
 			z.y = i*y_step + arg.d.ymin;
 			unsigned char value = is_in_julia(z, c);
+			arg.pixel_colors[i][j].r = pixels[value].r;
+			arg.pixel_colors[i][j].g = pixels[value].g;
+			arg.pixel_colors[i][j].b = pixels[value].b;
+		}
+	}
+}
+
+void *thread_function_mandelbrot(void *args){
+	ThreadArgs arg = *((ThreadArgs*)args);
+	
+	float x_step = (float)(arg.d.xmax - arg.d.xmin)/(float)arg.d.pixel_width;
+	float y_step = (float)(arg.d.ymax - arg.d.ymin)/(float)arg.d.pixel_height;
+
+	Complex c;
+	c.x = -0.153;
+	c.y = 0.652995;
+
+	Pixel* pixels = read_colors("pal.ppm");
+
+	int i,j;
+	for(i = arg.assignedIndex; i < arg.assignedIndex + arg.assignedCount; i++){
+		for(j = 0; j < arg.d.pixel_width; j++){
+			Complex z;
+			z.x = j*x_step + arg.d.xmin;
+			z.y = i*y_step + arg.d.ymin;
+			unsigned char value = is_in_mandelbrot(z);
 			arg.pixel_colors[i][j].r = pixels[value].r;
 			arg.pixel_colors[i][j].g = pixels[value].g;
 			arg.pixel_colors[i][j].b = pixels[value].b;
@@ -192,7 +242,7 @@ void create_picture_of_julia(Picture* p, Dimensions d, char* filename){
 	}
 }
 
-unsigned char is_in_mandlebrot(Complex c){
+unsigned char is_in_mandelbrot(Complex c){
 	int step = 0;
 	
 	Complex z = c;
