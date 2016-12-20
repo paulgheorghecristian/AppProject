@@ -38,8 +38,8 @@ int main(int argc, char** argv){
 
 	Picture p;
 
-	//create_picture_of_mandelbrot(&p, d, "fractal.ppm");
-	//write_picture(p);	
+	create_picture_of_mandelbrot(&p, d, "fractal.ppm");
+	write_picture(p);	
 
 	create_picture_of_julia(&p, d, "julia.ppm");
 	write_picture(p);
